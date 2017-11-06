@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
 import torch.nn as nn
 
-
+# Decoder
 # input: batch_size * nc * 64 * 64
 # output: batch_size * k * 1 * 1
 class Encoder(nn.Module):
@@ -37,7 +40,7 @@ class Encoder(nn.Module):
         output = self.main(input)
         return output
 
-
+# Generator
 # input: batch_size * k * 1 * 1
 # output: batch_size * nc * image_size * image_size
 class Decoder(nn.Module):
@@ -52,6 +55,7 @@ class Decoder(nn.Module):
 
         main = nn.Sequential()
         main.add_module('initial.{0}-{1}.convt'.format(k, cngf), nn.ConvTranspose2d(k, cngf, 4, 1, 0, bias=False))
+        print('cnfg--------------------------------', cngf)
         main.add_module('initial.{0}.batchnorm'.format(cngf), nn.BatchNorm2d(cngf))
         main.add_module('initial.{0}.relu'.format(cngf), nn.ReLU(True))
 
