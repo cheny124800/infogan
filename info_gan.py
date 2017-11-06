@@ -73,6 +73,10 @@ parser = util.get_args(parser)
 args = parser.parse_args()
 print(args)
 
+
+
+
+
 if args.experiment is None:
     args.experiment = 'samples'
 os.system('mkdir {0}'.format(args.experiment))
@@ -92,15 +96,19 @@ torch.cuda.manual_seed(args.manual_seed)
 cudnn.benchmark = True
 
 # Get data
-trn_dataset = util.get_data(args, train_flag=True)
-trn_loader = torch.utils.data.DataLoader(trn_dataset,
-                                         batch_size=args.batch_size,
-                                         shuffle=True,
-                                         num_workers=int(args.workers))
+data_length = 10000
+# trn_loader = util.load_data('/home/yz6/data/chairs/data.npy', args.batch_size, 64)
+# trn_dataset = util.get_data(args, train_flag=True)
+
+# trn_loader = torch.utils.data.DataLoader(trn_dataset,
+#                                          batch_size=args.batch_size,
+#                                          shuffle=True,
+#                                          num_workers=int(args.workers))
 
 # construct encoder/decoder modules
 hidden_dim = args.nz
 G_decoder = base_module.Decoder(args.image_size, args.nc, k=args.nz, ngf=64)
+print('construced G_decoder')
 D_encoder = base_module.Encoder(args.image_size, args.nc, k=hidden_dim, ndf=64)
 D_decoder = base_module.Decoder(args.image_size, args.nc, k=hidden_dim, ngf=64)
 
@@ -143,9 +151,9 @@ lambda_rg = 16.0
 time = timeit.default_timer()
 gen_iterations = 0
 for t in range(args.max_iter):
-    data_iter = iter(trn_loader)
+    data_iter = util.load_data('/home/yz6/data/chairs/data.npy', args.batch_size, 64)
     i = 0
-    while (i < len(trn_loader)):
+    while (i < data_length):
         # ---------------------------
         #        Optimize over NetD
         # ---------------------------
@@ -160,7 +168,7 @@ for t in range(args.max_iter):
             Giters = 1
 
         for j in range(Diters):
-            if i == len(trn_loader):
+            if i == data_length:
                 break
 
             # clamp parameters of NetD encoder to a cube
@@ -172,7 +180,9 @@ for t in range(args.max_iter):
             i += 1
             netD.zero_grad()
 
-            x_cpu, _ = data
+            #x_cpu, _ = data # torch.Floattensor
+            x_cpu =  torch.from_numpy(data)
+            
             x = Variable(x_cpu.cuda())
             batch_size = x.size(0)
 
@@ -208,14 +218,14 @@ for t in range(args.max_iter):
             p.requires_grad = False
 
         for j in range(Giters):
-            if i == len(trn_loader):
+            if i == data_length:
                 break
 
             data = data_iter.next()
             i += 1
             netG.zero_grad()
 
-            x_cpu, _ = data
+            x_cpu =  torch.from_numpy(data)
             x = Variable(x_cpu.cuda())
             batch_size = x.size(0)
 
@@ -242,7 +252,7 @@ for t in range(args.max_iter):
 
         run_time = (timeit.default_timer() - time) / 60.0
         print('[%3d/%3d][%3d/%3d] [%5d] (%.2f m) MMD2_D %.6f hinge %.6f L2_AE_X %.6f L2_AE_Y %.6f loss_D %.6f Loss_G %.6f f_X %.6f f_Y %.6f |gD| %.4f |gG| %.4f'
-              % (t, args.max_iter, i, len(trn_loader), gen_iterations, run_time,
+              % (t, args.max_iter, i, data_length, gen_iterations, run_time,
                  mmd2_D.data[0], one_side_errD.data[0],
                  L2_AE_X_D.data[0], L2_AE_Y_D.data[0],
                  errD.data[0], errG.data[0],
@@ -260,3 +270,6 @@ for t in range(args.max_iter):
     if t % 50 == 0:
         torch.save(netG.state_dict(), '{0}/netG_iter_{1}.pth'.format(args.experiment, t))
         torch.save(netD.state_dict(), '{0}/netD_iter_{1}.pth'.format(args.experiment, t))
+
+
+
