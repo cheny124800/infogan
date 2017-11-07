@@ -89,7 +89,7 @@ def sample_multinomial(num_classes, size):
     return c
 
 def sample_uniform(size):
-    c = np.random.uniform(0, 1, size=size)
+    c = np.random.uniform(-1, 1, size=size)
     return c
 def sample_random(size):
     return np.random.randn(*size)
@@ -179,6 +179,25 @@ def create_noise_cuda():
     
     return noise, noise_squeezed
 
+
+def create_fixed_noise_cuda():
+    noise_np_list = list()
+    noise_np_list.append(sample_random([BATCH_SIZE, 128]))
+    noise_np_list.append(np.repeat(sample_multinomial(num_classes=20, size=1), BATCH_SIZE, axis=0))
+    noise_np_list.append(np.repeat(sample_multinomial(num_classes=20, size=1), BATCH_SIZE, axis=0))
+    noise_np_list.append(np.repeat(sample_multinomial(num_classes=20, size=1), BATCH_SIZE, axis=0))
+    noise_np_list.append(np.expand_dims(np.linspace(-1, 1, BATCH_SIZE), axis=1))
+
+    noise_vector = np.concatenate(noise_np_list, axis=1)
+    noise_squeezed = torch.from_numpy(noise_vector.astype('float32')).cuda()
+    
+    
+    noise_vector = np.expand_dims(noise_vector, axis=2)
+    noise_vector = np.expand_dims(noise_vector, axis=3)
+    noise = torch.from_numpy(noise_vector.astype('float32')).cuda()
+    
+    return noise, noise_squeezed
+
     
 one = torch.cuda.FloatTensor([1])
 mone = one * -1
@@ -187,7 +206,7 @@ if args.cuda:
     netD.cuda()
     #one_sided.cuda()
 
-noise, fixed_noise_squeezed = create_noise_cuda()
+noise, fixed_noise_squeezed = create_fixed_noise_cuda()
 print('fixed noise')
 for v in fixed_noise_squeezed:
     print('z')
@@ -299,8 +318,8 @@ for t in range(args.max_iter):
             
             #ent_loss = torch.mean(torch.sum(c * torch.log(c + 1e-8), dim=1))
 
-            lamdba_c = 0.05
-            lamdba_d = 1
+            lamdba_c = 1
+            lamdba_d = 0.3
             mi_loss = lamdba_d * (crossent_1 + crossent_2 + crossent_3) + lamdba_c * ll_continuous
             
 #             print('mi_loss', mi_loss.size())
@@ -359,8 +378,8 @@ for t in range(args.max_iter):
             
             #ent_loss = torch.mean(torch.sum(c * torch.log(c + 1e-8), dim=1))
 
-            lamdba_c = 0.05
-            lamdba_d = 1
+            lamdba_c = 1
+            lamdba_d = 0.3
             mi_loss = lamdba_d * (crossent_1 + crossent_2 + crossent_3) + lamdba_c * ll_continuous
             
 #             print('mi_loss', mi_loss.size())
